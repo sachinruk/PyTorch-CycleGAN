@@ -5,7 +5,7 @@ import itertools
 
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
-from torch.autograd import Variable
+# from torch.autograd import Variable
 from PIL import Image
 import torch
 
@@ -13,7 +13,7 @@ from models import Generator
 from models import Discriminator
 from utils import ReplayBuffer
 from utils import LambdaLR
-from utils import Logger
+# from utils import Logger
 from utils import weights_init_normal
 from datasets import ImageDataset
 
@@ -72,8 +72,8 @@ lr_scheduler_D_B = torch.optim.lr_scheduler.LambdaLR(optimizer_D_B, lr_lambda=La
 Tensor = torch.cuda.FloatTensor if opt.cuda else torch.Tensor
 input_A = Tensor(opt.batchSize, opt.input_nc, opt.size, opt.size)
 input_B = Tensor(opt.batchSize, opt.output_nc, opt.size, opt.size)
-target_real = Variable(Tensor(opt.batchSize).fill_(1.0), requires_grad=False)
-target_fake = Variable(Tensor(opt.batchSize).fill_(0.0), requires_grad=False)
+target_real = Tensor(opt.batchSize).fill_(1.0)
+target_fake = Tensor(opt.batchSize).fill_(0.0)
 
 fake_A_buffer = ReplayBuffer()
 fake_B_buffer = ReplayBuffer()
@@ -87,16 +87,13 @@ transforms_ = [ transforms.Resize(int(opt.size*1.12), Image.BICUBIC),
 dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, unaligned=True), 
                         batch_size=opt.batchSize, shuffle=True, num_workers=opt.n_cpu)
 
-# Loss plot
-logger = Logger(opt.n_epochs, len(dataloader))
-###################################
 
 ###### Training ######
 for epoch in range(opt.epoch, opt.n_epochs):
     for i, batch in enumerate(dataloader):
         # Set model input
-        real_A = Variable(input_A.copy_(batch['A']))
-        real_B = Variable(input_B.copy_(batch['B']))
+        real_A = input_A.copy_(batch['A'])
+        real_B = input_B.copy_(batch['B'])
 
         ###### Generators A2B and B2A ######
         optimizer_G.zero_grad()
@@ -170,10 +167,12 @@ for epoch in range(opt.epoch, opt.n_epochs):
         optimizer_D_B.step()
         ###################################
 
-        # Progress report (http://localhost:8097)
-        logger.log({'loss_G': loss_G, 'loss_G_identity': (loss_identity_A + loss_identity_B), 'loss_G_GAN': (loss_GAN_A2B + loss_GAN_B2A),
-                    'loss_G_cycle': (loss_cycle_ABA + loss_cycle_BAB), 'loss_D': (loss_D_A + loss_D_B)}, 
-                    images={'real_A': real_A, 'real_B': real_B, 'fake_A': fake_A, 'fake_B': fake_B})
+        # # Progress report (http://localhost:8097)
+        # logger.log({'loss_G': loss_G, 'loss_G_identity': (loss_identity_A + loss_identity_B), 'loss_G_GAN': (loss_GAN_A2B + loss_GAN_B2A),
+        #             'loss_G_cycle': (loss_cycle_ABA + loss_cycle_BAB), 'loss_D': (loss_D_A + loss_D_B)}, 
+        #             images={'real_A': real_A, 'real_B': real_B, 'fake_A': fake_A, 'fake_B': fake_B})
+        if i//100 == 0:
+            print(i)
 
     # Update learning rates
     lr_scheduler_G.step()
