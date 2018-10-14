@@ -54,9 +54,10 @@ netD_A.apply(weights_init_normal)
 netD_B.apply(weights_init_normal)
 
 # Lossess
-criterion_GAN = torch.nn.MSELoss()
+criterion_GAN = torch.nn.BCEWithLogitsLoss()
 criterion_cycle = torch.nn.L1Loss()
 criterion_identity = torch.nn.L1Loss()
+
 
 # Optimizers & LR schedulers
 optimizer_G = torch.optim.Adam(itertools.chain(netG_A2B.parameters(), netG_B2A.parameters()),
@@ -81,7 +82,7 @@ fake_B_buffer = ReplayBuffer()
 # Dataset loader
 # transforms.Resize(int(opt.size*1.12), Image.BICUBIC), 
 transforms_ = [ RandomCrop(), 
-                RandomHorizontalFlip(),
+                RandomFlip(),
                 Normalize(),
                 ToTensor() ]
 dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, unaligned=True), 
@@ -109,11 +110,11 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # GAN loss
         fake_B = netG_A2B(real_A)
         pred_fake = netD_B(fake_B)
-        loss_GAN_A2B = criterion_GAN(pred_fake, target_real)
+        loss_GAN_A2B = criterion_GAN(pred_fake.squeeze(), target_real)
 
         fake_A = netG_B2A(real_B)
         pred_fake = netD_A(fake_A)
-        loss_GAN_B2A = criterion_GAN(pred_fake, target_real)
+        loss_GAN_B2A = criterion_GAN(pred_fake.squeeze(), target_real)
 
         # Cycle loss
         recovered_A = netG_B2A(fake_B)
@@ -134,12 +135,12 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # Real loss
         pred_real = netD_A(real_A)
-        loss_D_real = criterion_GAN(pred_real, target_real)
+        loss_D_real = criterion_GAN(pred_real.squeeze(), target_real)
 
         # Fake loss
         fake_A = fake_A_buffer.push_and_pop(fake_A)
         pred_fake = netD_A(fake_A.detach())
-        loss_D_fake = criterion_GAN(pred_fake, target_fake)
+        loss_D_fake = criterion_GAN(pred_fake.squeeze(), target_fake)
 
         # Total loss
         loss_D_A = (loss_D_real + loss_D_fake)*0.5
