@@ -73,9 +73,9 @@ class ImageDataset(Dataset):
         item_A = self.transform(imgA)
 
         if self.unaligned:
-            imgB = cv2.resize(cv2.imread(self.files_B[random.randint(0, len(self.files_B) - 1)]), (0,0), fx=1.12, fy=1.12)
+            imgB = cv2.imread(self.files_B[random.randint(0, len(self.files_B) - 1)])
         else:
-            imgB = cv2.resize(cv2.imread(self.files_B[index % len(self.files_B)]), (0,0), fx=1.12, fy=1.12)
+            imgB = cv2.imread(self.files_B[index % len(self.files_B)])
         item_B = self.transform(imgB)
 
         return {'A': item_A, 'B': item_B}
