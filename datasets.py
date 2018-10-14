@@ -6,6 +6,7 @@ import torch
 from torch.utils.data import Dataset
 # from PIL import Image
 import cv2
+import numpy as np
 import torchvision.transforms as transforms
 
 class RandomCrop(object):
