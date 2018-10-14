@@ -15,7 +15,7 @@ from utils import ReplayBuffer
 from utils import LambdaLR
 # from utils import Logger
 from utils import weights_init_normal
-from datasets import ImageDataset
+from datasets import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--epoch', type=int, default=0, help='starting epoch')
@@ -80,11 +80,10 @@ fake_B_buffer = ReplayBuffer()
 
 # Dataset loader
 # transforms.Resize(int(opt.size*1.12), Image.BICUBIC), 
-transforms_ = [ 
-                transforms.RandomCrop(opt.size), 
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
+transforms_ = [ RandomCrop(), 
+                RandomHorizontalFlip(),
+                Normalize(),
+                ToTensor() ]
 dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, unaligned=True), 
                         batch_size=opt.batchSize, shuffle=True, num_workers=opt.n_cpu)
 
