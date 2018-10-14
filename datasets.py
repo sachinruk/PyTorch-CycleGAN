@@ -10,7 +10,7 @@ import torchvision.transforms as transforms
 
 class RandomCrop(object):
 
-    def __call__(self, sample):
+    def __call__(self, im):
         h, w, c = im.shape
         scale = np.random.uniform() / 10. + 1.
         max_offx = (scale-1.) * w
