@@ -2,11 +2,10 @@
 
 import argparse
 import itertools
+import time
 
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
-# from torch.autograd import Variable
-from PIL import Image
 import torch
 
 from models import Generator
@@ -14,7 +13,7 @@ from models import Discriminator
 from utils import ReplayBuffer
 from utils import LambdaLR
 # from utils import Logger
-from utils import weights_init_normal
+# from utils import weights_init_normal
 from datasets import *
 
 parser = argparse.ArgumentParser()
@@ -48,11 +47,6 @@ if opt.cuda:
     netD_A.cuda()
     netD_B.cuda()
 
-netG_A2B.apply(weights_init_normal)
-netG_B2A.apply(weights_init_normal)
-netD_A.apply(weights_init_normal)
-netD_B.apply(weights_init_normal)
-
 # Lossess
 criterion_GAN = torch.nn.BCEWithLogitsLoss()
 criterion_cycle = torch.nn.L1Loss()
@@ -65,23 +59,16 @@ optimizer_G = torch.optim.Adam(itertools.chain(netG_A2B.parameters(), netG_B2A.p
 optimizer_D_A = torch.optim.Adam(netD_A.parameters(), lr=opt.lr, betas=(0.5, 0.999))
 optimizer_D_B = torch.optim.Adam(netD_B.parameters(), lr=opt.lr, betas=(0.5, 0.999))
 
-lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(optimizer_G, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
-lr_scheduler_D_A = torch.optim.lr_scheduler.LambdaLR(optimizer_D_A, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
-lr_scheduler_D_B = torch.optim.lr_scheduler.LambdaLR(optimizer_D_B, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
-
-# Inputs & targets memory allocation
-Tensor = torch.cuda.FloatTensor if opt.cuda else torch.Tensor
-input_A = Tensor(opt.batchSize, opt.input_nc, opt.size, opt.size)
-input_B = Tensor(opt.batchSize, opt.output_nc, opt.size, opt.size)
-target_real = Tensor(opt.batchSize).fill_(1.0)
-target_fake = Tensor(opt.batchSize).fill_(0.0)
+# lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(optimizer_G, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
+# lr_scheduler_D_A = torch.optim.lr_scheduler.LambdaLR(optimizer_D_A, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
+# lr_scheduler_D_B = torch.optim.lr_scheduler.LambdaLR(optimizer_D_B, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
 
 fake_A_buffer = ReplayBuffer()
 fake_B_buffer = ReplayBuffer()
 
 # Dataset loader
-# transforms.Resize(int(opt.size*1.12), Image.BICUBIC), 
-transforms_ = [ RandomCrop(), 
+transforms_ = [ RandomCrop(),
+                Rescale((opt.size,opt.size)),
                 RandomFlip(),
                 Normalize(),
                 ToTensor() ]
@@ -91,10 +78,13 @@ dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, unal
 
 ###### Training ######
 for epoch in range(opt.epoch, opt.n_epochs):
+    start = time.time()
     for i, batch in enumerate(dataloader):
         # Set model input
-        real_A = input_A.copy_(batch['A'])
-        real_B = input_B.copy_(batch['B'])
+        target_real = torch.ones(len(batch['A'])).to('cuda')
+        target_fake = torch.zeros(len(batch['A'])).to('cuda')
+        real_A = batch['A'].to('cuda')
+        real_B = batch['B'].to('cuda')
 
         ###### Generators A2B and B2A ######
         optimizer_G.zero_grad()
@@ -172,17 +162,15 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # logger.log({'loss_G': loss_G, 'loss_G_identity': (loss_identity_A + loss_identity_B), 'loss_G_GAN': (loss_GAN_A2B + loss_GAN_B2A),
         #             'loss_G_cycle': (loss_cycle_ABA + loss_cycle_BAB), 'loss_D': (loss_D_A + loss_D_B)}, 
         #             images={'real_A': real_A, 'real_B': real_B, 'fake_A': fake_A, 'fake_B': fake_B})
-    if epoch % (opt.n_epochs//10) == 0:
-        print('Epoch',epoch,'complete!')
+#     if epoch % (opt.n_epochs//10) == 0:
+    print('Epoch',epoch,'complete!')
+    print('Time taken: {0:.2f}s'.format(time.time() - start))
 
-    # Update learning rates
-    lr_scheduler_G.step()
-    lr_scheduler_D_A.step()
-    lr_scheduler_D_B.step()
+#     # Update learning rates
+#     lr_scheduler_G.step()
+#     lr_scheduler_D_A.step()
+#     lr_scheduler_D_B.step()
 
     # Save models checkpoints
-    torch.save(netG_A2B.state_dict(), 'output/netG_A2B.pth')
-    torch.save(netG_B2A.state_dict(), 'output/netG_B2A.pth')
-    torch.save(netD_A.state_dict(), 'output/netD_A.pth')
-    torch.save(netD_B.state_dict(), 'output/netD_B.pth')
-###################################
+    torch.save(netG_A2B.state_dict(), 'output/netG_A2B_{0:d}.pth'.format(epoch))
+    torch.save(netG_B2A.state_dict(), 'output/netG_B2A_{0:d}.pth'.format(epoch))
